@@ -1,6 +1,7 @@
 package org.activiti.cloud.services.security;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -10,6 +11,9 @@ import org.activiti.cloud.services.query.model.QTaskEntity;
 import org.activiti.cloud.services.query.model.QTaskVariableEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 /*
@@ -49,7 +53,7 @@ public class TaskLookupRestrictionService {
     }
 
     private Predicate restrictTaskQuery(Predicate predicate, QTaskEntity task){
-
+        
         if (!restrictionsEnabled){
             return predicate;
         }
@@ -68,9 +72,14 @@ public class TaskLookupRestrictionService {
                                 .and(isNotAssigned));
 
 
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
             List<String> groups = null;
-            if (userGroupManager != null) {
-                groups = userGroupManager.getUserGroups(userId);
+            if (authentication != null) {
+                groups = authentication.getAuthorities()
+                                       .stream()
+                                       .map(GrantedAuthority::getAuthority)
+                                       .collect(Collectors.toList());
             }
             if(groups!=null && groups.size()>0) {
                 //belongs to candidate group and task is not assigned
